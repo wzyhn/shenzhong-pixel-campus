@@ -21,6 +21,14 @@ class NicknameRateLimited extends Error {
   constructor() { super("昵称操作太频繁，请稍后再试。"); }
 }
 
+class PlayerBanned extends Error {
+  constructor() { super("当前校园账号已被限制。请联系站长，解封后可在此浏览器继续使用原账号。"); }
+}
+
+class CampusMaintenance extends Error {
+  constructor() { super("校园正在维护，暂时无法保存。请稍后重试。"); }
+}
+
 function validNickname(value) {
   return typeof value === "string" && value === value.trim() && value.length > 0 &&
     Array.from(value).length <= 24 && !/[\x00-\x1f\x7f-\x9f\u2028\u2029\u202a-\u202e\u2066-\u2069]/u.test(value);
@@ -208,7 +216,13 @@ export function createCampusIdentity({
       credentials: "same-origin", redirect: "error", cache: "no-store",
       signal: AbortSignal.timeout(6500), ...options,
     });
-    if (response.status === 401 || response.status === 403) return { status: response.status, data: null };
+    if (response.status === 401 || response.status === 403) {
+      const payload = response.status === 403 ? await response.json().catch(() => null) : null;
+      return { status: response.status, data: null, error: payload?.error === "player_banned" ? payload.error : undefined };
+    }
+    if (response.status === 503 && (await response.json().catch(() => null))?.error === "campus_maintenance") {
+      throw new CampusMaintenance();
+    }
     if (response.status === 429 && (await response.json().catch(() => null))?.error === "nickname_rate_limited") {
       return { status: 429, error: "nickname_rate_limited" };
     }
@@ -243,8 +257,9 @@ export function createCampusIdentity({
     if (disposed) return Promise.reject(new Error("Campus identity is closed"));
     if (!reading) {
       const epoch = generation;
-      reading = request("/api/campus/session").then(({ data }) => {
+      reading = request("/api/campus/session").then(({ data, error }) => {
         if (!disposed && generation === epoch) replace(data, !session);
+        if (error === "player_banned") throw new PlayerBanned();
         return session;
       }).finally(() => { reading = undefined; });
     }
@@ -262,6 +277,7 @@ export function createCampusIdentity({
       if (!current()) throw new Error("未能确认昵称登录");
       if (coordinated) {
         const existing = await request("/api/campus/session");
+        if (existing.error === "player_banned") throw new PlayerBanned();
         if (!current() || existing.status !== 200) throw new Error("未能确认昵称登录");
         if (existing.data) return existing;
       }
@@ -271,6 +287,7 @@ export function createCampusIdentity({
       });
     });
     if (!current()) throw new Error("未能确认昵称登录");
+    if (error === "player_banned") throw new PlayerBanned();
     if (error === "nickname_taken") throw new NicknameTaken();
     if (error === "nickname_rate_limited") throw new NicknameRateLimited();
     if (!data) throw new Error("未能确认昵称登录");
@@ -298,6 +315,7 @@ export function createCampusIdentity({
         if (!current()) throw new Error("校园账号已变更");
         if (error === "nickname_taken") throw new NicknameTaken();
         if (error === "nickname_rate_limited") throw new NicknameRateLimited();
+        if (error === "player_banned") throw new PlayerBanned();
         if (status === 401 || status === 403 || error === "nickname_required") {
           await load();
           break;
@@ -533,7 +551,8 @@ export function createCampusIdentity({
         try { button.click(); } finally { forwardingRename = undefined; }
       } catch (error) {
         if (!destroyed && authorized() && button.isConnected) {
-          warning.textContent = error instanceof NicknameTaken || error instanceof NicknameRateLimited
+          warning.textContent = error instanceof NicknameTaken || error instanceof NicknameRateLimited ||
+            error instanceof PlayerBanned || error instanceof CampusMaintenance
             ? error.message : "暂时无法保存昵称，请重试。";
           field.readOnly = false;
           field.focus({ preventScroll: true });
@@ -712,7 +731,8 @@ export function mountCampusNickname(host, { identity, onSession }) {
           else enter(result);
         } catch (error) {
           if (!destroyed) {
-            status.textContent = error instanceof NicknameTaken || error instanceof NicknameRateLimited ? error.message :
+            status.textContent = error instanceof NicknameTaken || error instanceof NicknameRateLimited ||
+              error instanceof PlayerBanned || error instanceof CampusMaintenance ? error.message :
               repair ? "暂时无法保存昵称，请重试。" : "暂时无法进入校园，请重试。";
             if (error instanceof NicknameTaken) {
               control.setAttribute("aria-invalid", "true");
@@ -739,9 +759,10 @@ export function mountCampusNickname(host, { identity, onSession }) {
       if (destroyed) return;
       if (!session || session.user.nicknameConflict) return form(session);
       enter(session);
-    }, async () => {
+    }, async (error) => {
       if (destroyed) return;
-      loading.textContent = "暂时无法确认校园登录。";
+      loading.textContent = error instanceof PlayerBanned || error instanceof CampusMaintenance
+        ? error.message : "暂时无法确认校园登录。";
       try {
         const design = await import("./tdesign.mjs");
         if (!destroyed) host.append(design.button("重试", load, "primary"));

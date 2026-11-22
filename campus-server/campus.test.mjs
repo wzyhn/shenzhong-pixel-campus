@@ -148,7 +148,7 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
   await migrate(owner);
   await migrate(owner);
   const migrations = await owner.query('SELECT name FROM paperplane_campus.migrations ORDER BY ordinal');
-  assert.deepEqual(migrations.rows.map((row) => row.name), [...priorMigrations, '004_unique_nicknames.sql']);
+  assert.deepEqual(migrations.rows.map((row) => row.name), [...priorMigrations, '004_unique_nicknames.sql', '005_private_admin.sql']);
   await owner.query('GRANT USAGE ON SCHEMA paperplane_campus TO ' + role);
   await owner.query('GRANT SELECT ON paperplane_campus.migrations TO ' + role);
   await owner.query('GRANT SELECT, INSERT, UPDATE ON paperplane_campus.players, paperplane_campus.sessions, paperplane_campus.albums TO ' + role);

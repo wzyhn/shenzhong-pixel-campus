@@ -37,6 +37,20 @@ function server(react) {
   return { traffic, fetcher };
 }
 
+test("a banned browser retains its account for recovery and maintenance is actionable", async () => {
+  let blocked = true;
+  const fixture = server(({ method }) => method === "POST"
+    ? { status: 503, data: { error: "campus_maintenance" } }
+    : blocked ? { status: 403, data: { error: "player_banned" } } : { data: signed() });
+  const identity = createCampusIdentity({ fetcher: fixture.fetcher, storage: storage() });
+  await assert.rejects(identity.load(), /解封后可在此浏览器继续使用原账号/);
+  assert.equal(identity.current(), null);
+  blocked = false;
+  assert.equal((await identity.load()).user.id, actor);
+  await assert.rejects(identity.login("正常昵称"), /校园正在维护/);
+  identity.destroy();
+});
+
 function child(initial = { principal: "guest", displayName: "旧访客" }, fragment = "") {
   const window = new EventTarget();
   const document = new EventTarget();

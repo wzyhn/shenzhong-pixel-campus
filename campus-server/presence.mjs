@@ -62,6 +62,7 @@ function actorProjection(actor) {
 
 export function createPresenceRoom(now = () => performance.now()) {
   const actors = new Map();
+  let clearedAt = -Infinity;
   const roomKey = randomBytes(32);
   const publicID = (kind, id) => createHmac('sha256', roomKey).update(kind + ':' + id).digest('hex').slice(0, 24);
 
@@ -110,6 +111,7 @@ export function createPresenceRoom(now = () => performance.now()) {
       const time = now();
       prune(time);
       if (time - at >= playerTTL) return { status: 429 };
+      if (at <= clearedAt) return { status: 200, body: snapshot(user.id, time) };
       const actor = actorFor(user);
       if (!actor) return { status: 429 };
       const prior = actor.tabs.get(packet.tabId);
@@ -135,6 +137,7 @@ export function createPresenceRoom(now = () => performance.now()) {
     leave(user, tabID, at) {
       const time = now();
       prune(time);
+      if (at <= clearedAt) return snapshot(user.id, time);
       const actor = actorFor(user);
       const prior = actor?.tabs.get(tabID);
       if (actor && (prior ? at >= prior.at : actor.tabs.size < maxTabs)) actor.tabs.set(tabID, { at, left: true });
@@ -149,6 +152,16 @@ export function createPresenceRoom(now = () => performance.now()) {
       actor.revokedAt = at;
       for (const tabID of actor.tabs.keys()) actor.tabs.set(tabID, { at, left: true });
       actor.emotes.clear();
+    },
+
+    count() {
+      prune(now());
+      return Array.from(actors.values()).filter(actor => actorProjection(actor)).length;
+    },
+
+    clear() {
+      clearedAt = now();
+      actors.clear();
     },
   };
 }

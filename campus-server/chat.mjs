@@ -22,7 +22,7 @@ function publicMessage(row, viewer) {
 }
 
 function receipt(row, viewer) {
-  const body = row.revoked_at
+  const body = row.revoked_at || row.hidden
     ? { status: 'revoked', message: null }
     : { status: 'published', message: publicMessage(row, viewer) };
   return { status: 200, body };
@@ -42,7 +42,7 @@ async function withPlayer(pool, token, expectedID, lock, operation) {
   });
 }
 
-async function publish(client, player, requestID, text) {
+async function publish(client, player, requestID, text, hidden) {
   const textDigest = createHash('sha256').update(text).digest();
   // This serializes admission budgets across independent accounts and API instances.
   await client.query("SELECT pg_advisory_xact_lock(hashtext('paperplane_campus.chat_submission'))");
@@ -57,7 +57,7 @@ async function publish(client, player, requestID, text) {
   );
 
   const { rows: [existing] } = await client.query(
-    `SELECT ${publicFields}, m.text_sha256, m.revoked_at FROM ${rows} m
+    `SELECT ${publicFields}, m.text_sha256, m.revoked_at, ${hidden} AS hidden FROM ${rows} m
      JOIN paperplane_campus.players p ON p.id = m.player_id WHERE m.player_id = $1 AND m.request_id = $2`,
     [player, requestID],
   );
@@ -86,7 +86,8 @@ async function publish(client, player, requestID, text) {
   return receipt(created, player);
 }
 
-export function createCampusChat(pool) {
+export function createCampusChat(pool, { adminEnabled = false } = {}) {
+  const hidden = adminEnabled ? 'EXISTS (SELECT 1 FROM paperplane_campus.admin_hidden_chat h WHERE h.message_id = m.id)' : 'false';
   return {
     async ready() {
       const { rowCount } = await pool.query(
@@ -102,7 +103,7 @@ export function createCampusChat(pool) {
         const { rows: result } = await client.query(
           `SELECT ${publicFields} FROM ${rows} m
            JOIN paperplane_campus.players p ON p.id = m.player_id
-           WHERE NOT p.nickname_conflict AND m.revoked_at IS NULL
+           WHERE NOT p.nickname_conflict AND m.revoked_at IS NULL AND NOT ${hidden}
              AND m.published_at > clock_timestamp() - interval '7 days'
            ORDER BY m.published_at DESC, m.id DESC LIMIT 30`,
         );
@@ -111,7 +112,7 @@ export function createCampusChat(pool) {
     },
 
     submit(token, expectedID, requestID, text) {
-      return withPlayer(pool, token, expectedID, true, (client, player) => publish(client, player, requestID, text));
+      return withPlayer(pool, token, expectedID, true, (client, player) => publish(client, player, requestID, text, hidden));
     },
 
     revoke(token, expectedID, id) {

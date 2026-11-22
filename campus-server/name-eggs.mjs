@@ -6,6 +6,22 @@ import { exactObject, parseNickname, validText } from './progress.mjs';
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const weather = new Set(['day', 'night', 'rain', 'snow']);
 
+export function parseNameEggs(rows) {
+  if (!Array.isArray(rows)) throw new Error('Invalid campus name eggs');
+  const eggs = new Map();
+  for (const row of rows) {
+    if (!exactObject(row, ['nickname', 'txt', 'fx'])) throw new Error('Invalid campus name eggs');
+    const { nickname, txt, fx } = row;
+    if (typeof nickname !== 'string' || parseNickname(nickname) !== nickname || eggs.has(nickname) ||
+        !validText(txt, 1, 256) || !exactObject(fx, [], ['star', 'wx', 'toast']) ||
+        (Object.hasOwn(fx, 'star') && fx.star !== true) ||
+        (Object.hasOwn(fx, 'wx') && !weather.has(fx.wx)) ||
+        (Object.hasOwn(fx, 'toast') && !validText(fx.toast, 1, 256))) throw new Error('Invalid campus name eggs');
+    eggs.set(nickname, { txt, fx });
+  }
+  return eggs;
+}
+
 export function readNameEggs(path) {
   try {
     if (!isAbsolute(path)) throw new Error();
@@ -19,19 +35,7 @@ export function readNameEggs(path) {
       closeSync(file);
     }
 
-    if (!Array.isArray(rows)) throw new Error();
-    const eggs = new Map();
-    for (const row of rows) {
-      if (!exactObject(row, ['nickname', 'txt', 'fx'])) throw new Error();
-      const { nickname, txt, fx } = row;
-      if (typeof nickname !== 'string' || parseNickname(nickname) !== nickname || eggs.has(nickname) ||
-          !validText(txt, 1, 256) || !exactObject(fx, [], ['star', 'wx', 'toast']) ||
-          (Object.hasOwn(fx, 'star') && fx.star !== true) ||
-          (Object.hasOwn(fx, 'wx') && !weather.has(fx.wx)) ||
-          (Object.hasOwn(fx, 'toast') && !validText(fx.toast, 1, 256))) throw new Error();
-      eggs.set(nickname, { txt, fx });
-    }
-    return eggs;
+    return parseNameEggs(rows);
   } catch {
     // JSON parser errors can contain private catalog text.
     throw Object.assign(new Error('Invalid campus name egg configuration'), { code: 'CAMPUS_NAME_EGGS_CONFIG' });

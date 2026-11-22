@@ -35,6 +35,10 @@ jobs:
         env:
           WECONQ_TEST_POSTGRES_DSN: postgresql://postgres:campus-integration@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres
       - run: docker compose --env-file .env.example -f compose.coolify.yml config --quiet
+      - run: docker compose --env-file .env.example -f compose.coolify.yml -f compose.admin.yml config --quiet
+        env:
+          PAPERPLANE_CAMPUS_ADMIN_ENVIRONMENT: staging
+          PAPERPLANE_CAMPUS_ADMIN_CREDENTIALS_DIR: /srv/campus/test-admin
       - run: docker compose -p campus-fixture -f compose.demo.yml up -d --build --wait --wait-timeout 110
         env:
           SOURCE_COMMIT: ${{ github.sha }}
