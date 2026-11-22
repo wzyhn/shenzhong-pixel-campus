@@ -201,6 +201,10 @@ export function connectCampusAlbum(child, { principalID, current, fetcher = glob
     notice = text;
     const foot = child.document.querySelector("#ppCam .ppc-foot");
     if (!foot) return;
+    const counter = foot.querySelector(".ppc-note:not([data-campus-album-status])");
+    if (counter?.textContent.endsWith(" · 保存在这台设备上")) {
+      counter.textContent = counter.textContent.replace(/ · 保存在这台设备上$/, " · 相册仅自己可见");
+    }
     let note = foot.querySelector("[data-campus-album-status]");
     if (!text) { note?.remove(); return; }
     if (!note) {
@@ -284,7 +288,7 @@ export function connectCampusAlbum(child, { principalID, current, fetcher = glob
   }
 
   function albumOpening() {
-    if (notice) child.queueMicrotask(() => { if (authorized()) setNotice(notice); });
+    child.queueMicrotask(() => { if (authorized()) setNotice(notice); });
     void sync();
   }
 

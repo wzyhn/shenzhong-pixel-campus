@@ -136,8 +136,9 @@ function nicknameRateLimited(response, retryAfter) {
 
 export function createCampusServer({
   store, origin = defaultOrigin, presence = createPresenceRoom(), chat = null,
-  nameEggs = new Map(), trustProxy = false, onError = () => {},
+  nameEggs = new Map(), trustProxy = false, onError = () => {}, revision = 'local',
 }) {
+  if (revision !== 'local' && !/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid campus API build revision');
   const limits = createNicknameLimits();
   function sessionView(profile) {
     const user = profile.user;
@@ -223,7 +224,7 @@ export function createCampusServer({
       }
 
       if (route === 'GET /api/campus/session') {
-        return json(response, 200, sessionView(await store.session(token)));
+        return json(response, 200, sessionView(await store.session(token)), { 'X-Campus-Revision': revision });
       }
       if (route === 'GET /api/auth/session') {
         return json(response, 200, legacyView(await store.session(token)));
@@ -256,7 +257,7 @@ export function createCampusServer({
           revision: body.revision, progress: body.progress, nickname,
         }, (id) => limits.rename(id, nicknameSource(request, trustProxy)));
         if (result.retryAfter) return nicknameRateLimited(response, result.retryAfter);
-        if (result.status === 200 && nickname !== undefined) presence.revoke(result.profile.user.id);
+        if (result.nicknameChanged) presence.revoke(result.profile.user.id);
         return json(response, result.status, result.nicknameChanged ? sessionView(result.profile) : result.profile);
       }
 
@@ -324,7 +325,8 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     if (!(await store.ready())) throw new Error('Campus database migrations are required');
     const chat = createCampusChat(pool);
     if (!(await chat.ready())) throw new Error('Campus chat migration and grants are required');
-    const server = createCampusServer({ store, chat, origin, nameEggs, trustProxy, onError: logError });
+    const revision = process.env.PAPERPLANE_CAMPUS_BUILD_SHA;
+    const server = createCampusServer({ store, chat, origin, nameEggs, trustProxy, onError: logError, revision });
     server.listen(port, '0.0.0.0', () => console.log('Campus service listening on port ' + port));
     for (const signal of ['SIGINT', 'SIGTERM']) {
       process.once(signal, () => {

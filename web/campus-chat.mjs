@@ -497,6 +497,12 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
 
   function openCompose(source = open) { setPanel("compose", source); }
   function openEmoji(source = stockEmoji) { setPanel(active === "emoji" ? "" : "emoji", source); }
+  function dismissEmoji() {
+    if (active !== "emoji") return;
+    const opener = emoji.contains(doc.activeElement) ? trigger : undefined;
+    setPanel("");
+    return opener;
+  }
   open.addEventListener("click", () => { if (modal) setPanel("", open); else openCompose(open); });
   openHistory.addEventListener("click", () => setPanel("history", openHistory));
   closeComposer.addEventListener("click", () => setPanel("", trigger));
@@ -530,6 +536,10 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
     });
   }
   listen(doc, "click", event => {
+    if (active === "emoji" && !emoji.contains(event.target) && !stockEmoji?.contains(event.target)) {
+      const opener = dismissEmoji();
+      if (event.target === mapCanvas) opener?.focus({ preventScroll: true });
+    }
     if (!modal || panel.contains(event.target) || open.contains(event.target)) return;
     const vacant = doc.activeElement === doc.body || panel.contains(doc.activeElement);
     setPanel("", event.target === mapCanvas && vacant ? trigger : undefined);
@@ -663,5 +673,5 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
     ui.remove();
   }
 
-  return { ready: styled, destroy, getVisibleOverlay, updateViewport };
+  return { ready: styled, destroy, dismissEmoji, getVisibleOverlay, updateViewport };
 }

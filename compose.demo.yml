@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: ./web
-      args:
+      args: &campus-build-args
         SOURCE_COMMIT: ${SOURCE_COMMIT:-local}
     ports: ["127.0.0.1:18080:8080"]
     read_only: true
@@ -24,6 +24,7 @@ services:
   campus-api:
     build:
       context: ./campus-server
+      args: *campus-build-args
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

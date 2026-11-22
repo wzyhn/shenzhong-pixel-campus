@@ -287,7 +287,7 @@ export function mountCampusEmbed(host, { bgm, identity, principalID, onReady }) 
       hud.compactRoster();
       room.ensureJoined();
       try {
-        overview = connectCampusOverview(child);
+        overview = connectCampusOverview(child, { dismissEmoji: () => chat?.dismissEmoji() });
         hud.attachQuickMap(overview.open);
       } catch { /* The original map remains usable. */ }
       try {

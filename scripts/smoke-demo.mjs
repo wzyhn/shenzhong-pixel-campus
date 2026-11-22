@@ -14,7 +14,9 @@ assert.equal(release.data.revision, process.env.SOURCE_COMMIT || 'local');
 assert.equal(release.data.assetManifestSha256, null);
 assert.match(await (await request('/')).text(), /校园开发样例/);
 assert.match(await (await request('/' + encodeURI('手机校园/深中随身校园.html'))).text(), /合成像素地图/);
-assert.equal((await json('/api/campus/session')).data.user, null);
+const anonymous = await json('/api/campus/session');
+assert.deepEqual(anonymous.data, { user: null, state: null });
+assert.equal(anonymous.response.headers.get('x-campus-revision'), release.data.revision);
 
 const { response, data } = await json('/api/campus/session', {
   method: 'POST',
