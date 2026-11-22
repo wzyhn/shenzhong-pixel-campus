@@ -1,0 +1,16 @@
+services:
+  campus-api:
+    ports:
+      - "127.0.0.1:${PAPERPLANE_CAMPUS_ADMIN_LOCAL_PORT:-8443}:8443"
+    environment:
+      PAPERPLANE_CAMPUS_ADMIN_BIND: "0.0.0.0"
+      PAPERPLANE_CAMPUS_ADMIN_ENVIRONMENT: ${PAPERPLANE_CAMPUS_ADMIN_ENVIRONMENT:?}
+      PAPERPLANE_CAMPUS_ADMIN_CREDENTIALS_FILE: /app/admin-private/credentials.json
+      PAPERPLANE_CAMPUS_ADMIN_DATABASE_URL_FILE: /app/admin-private/database-url
+    volumes:
+      - type: bind
+        source: ${PAPERPLANE_CAMPUS_ADMIN_CREDENTIALS_DIR:?}
+        target: /app/admin-private
+        read_only: true
+        bind:
+          create_host_path: false

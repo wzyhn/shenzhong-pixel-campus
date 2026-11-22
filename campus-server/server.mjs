@@ -1,6 +1,9 @@
 import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { pathToFileURL } from 'node:url';
 import { TextDecoder } from 'node:util';
+import { createAdminServer, readAdminCredentials } from './admin.mjs';
+import { createAdminStore } from './admin-store.mjs';
 import { maxPhotoBytes, validPhotoMetadata, validPng } from './album.mjs';
 import { createCampusChat, parseChatText } from './chat.mjs';
 import { answerCampusClue, campusClues, findCampusClue } from './clues.mjs';
@@ -136,13 +139,14 @@ function nicknameRateLimited(response, retryAfter) {
 
 export function createCampusServer({
   store, origin = defaultOrigin, presence = createPresenceRoom(), chat = null,
-  nameEggs = new Map(), trustProxy = false, onError = () => {}, revision = 'local',
+  nameEggs = new Map(), admin = null, trustProxy = false, onError = () => {}, revision = 'local',
 }) {
   if (revision !== 'local' && !/^[a-f0-9]{40}$/.test(revision)) throw new Error('Invalid campus API build revision');
   const limits = createNicknameLimits();
+  const nameEggFor = nickname => admin ? admin.egg(nickname) : nameEggs.get(nickname);
   function sessionView(profile) {
     const user = profile.user;
-    const nameEgg = user && !user.nicknameConflict && nameEggs.get(user.nickname);
+    const nameEgg = user && !user.nicknameConflict && nameEggFor(user.nickname);
     return nameEgg ? { ...profile, nameEgg } : profile;
   }
 
@@ -152,8 +156,10 @@ export function createCampusServer({
     response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     response.setHeader('Referrer-Policy', 'no-referrer');
 
+    let endWrite;
     try {
       const route = request.method + ' ' + request.url;
+      const at = presence.now();
       if (route === 'GET /healthz') {
         const ready = await store.ready().then((ready) => ready && (!chat || chat.ready())).catch(() => false);
         return json(response, ready ? 200 : 503, { ready });
@@ -185,6 +191,18 @@ export function createCampusServer({
       }
 
       const token = sessionToken(request);
+      if (admin && (request.url.startsWith('/api/campus/') || route === 'GET /api/auth/session') &&
+          !request.url.startsWith('/api/campus/clues')) {
+        const writesCampus = !isRead;
+        if (writesCampus) {
+          endWrite = admin.beginWrite();
+          if (!endWrite) throw new RequestError(503, 'campus_maintenance');
+        }
+        const admission = await admin.access(token);
+        if (admission.banned) throw new RequestError(403, 'player_banned');
+        if (admission.maintenance && writesCampus && route !== 'DELETE /api/campus/presence')
+          throw new RequestError(503, 'campus_maintenance');
+      }
       if ((request.url === chatPath && (isRead || request.method === 'POST')) ||
           (request.method === 'DELETE' && request.url.startsWith(chatPath + '/'))) {
         if (!chat) throw new RequestError(503, 'chat_unavailable');
@@ -207,7 +225,6 @@ export function createCampusServer({
       }
 
       if (route === 'POST /api/campus/presence' || route === 'DELETE /api/campus/presence') {
-        const at = presence.now();
         const expectedID = scope(request);
         const leaving = request.method === 'DELETE';
         const packet = roomPacket(await readJSON(request, 2048), leaving);
@@ -216,7 +233,7 @@ export function createCampusServer({
         if (!user) throw new RequestError(401, 'not_authenticated');
         if (user.id !== expectedID) throw new RequestError(403, 'account_mismatch');
         if (leaving) return json(response, 200, presence.leave(user, packet.tabId, at));
-        const nameStar = nameEggs.get(user.nickname)?.fx.star === true;
+        const nameStar = nameEggFor(user.nickname)?.fx.star === true;
         const result = presence.update({ ...user, nameStar }, packet, at);
         return result.status === 429
           ? json(response, 429, { error: 'try_again' }, { 'Retry-After': '1' })
@@ -304,6 +321,8 @@ export function createCampusServer({
       if (isNicknameTaken(error)) return json(response, 409, { error: 'nickname_taken' });
       onError(error);
       return json(response, 503, { error: 'unavailable' });
+    } finally {
+      endWrite?.();
     }
   });
 }
@@ -318,24 +337,56 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
   const logError = (error) => console.error('Campus service error', error.code ?? error.name);
   pool.on('error', logError);
   const store = createStore(pool);
+  let privateServer, adminPool;
   try {
     const catalogPath = process.env.PAPERPLANE_CAMPUS_NAME_EGGS_FILE;
-    const nameEggs = catalogPath === undefined ? undefined : readNameEggs(catalogPath);
+    const nameEggs = catalogPath === undefined ? new Map() : readNameEggs(catalogPath);
+    const credentialsPath = process.env.PAPERPLANE_CAMPUS_ADMIN_CREDENTIALS_FILE;
     const trustProxy = process.env.PAPERPLANE_CAMPUS_TRUST_PROXY === '1';
     if (!(await store.ready())) throw new Error('Campus database migrations are required');
-    const chat = createCampusChat(pool);
+    const presence = createPresenceRoom();
+    const { rowCount } = await pool.query("SELECT 1 FROM paperplane_campus.migrations WHERE name = '005_private_admin.sql'");
+    if (credentialsPath && rowCount === 1) {
+      try {
+        adminPool = createPool(readDatabaseURL('PAPERPLANE_CAMPUS_ADMIN_DATABASE_URL'));
+        adminPool.on('error', logError);
+      } catch (error) { logError(error); }
+    }
+    const admin = rowCount === 1 ? await createAdminStore({ policyPool: pool, pool: adminPool, presence,
+      originalEggs: nameEggs, onError: logError }) : null;
+    const chat = createCampusChat(pool, { adminEnabled: Boolean(admin) });
     if (!(await chat.ready())) throw new Error('Campus chat migration and grants are required');
-    const revision = process.env.PAPERPLANE_CAMPUS_BUILD_SHA;
-    const server = createCampusServer({ store, chat, origin, nameEggs, trustProxy, onError: logError, revision });
+    const revision = process.env.PAPERPLANE_CAMPUS_BUILD_SHA ?? 'local';
+    const server = createCampusServer({ store, chat, origin, presence, nameEggs, admin, trustProxy, onError: logError, revision });
     server.listen(port, '0.0.0.0', () => console.log('Campus service listening on port ' + port));
+    if (credentialsPath) {
+      try {
+        if (!admin) throw new Error('Campus admin migration is required');
+        await admin.verifyWriter();
+        const credentials = () => readAdminCredentials(credentialsPath);
+        const environment = process.env.PAPERPLANE_CAMPUS_ADMIN_ENVIRONMENT ?? 'local';
+        const binding = process.env.PAPERPLANE_CAMPUS_ADMIN_BIND ?? '127.0.0.1';
+        if (!['production', 'staging', 'local'].includes(environment) || !['127.0.0.1', '0.0.0.0'].includes(binding))
+          throw new Error('Invalid campus administration configuration');
+        privateServer = createAdminServer({ store: admin, credentials, environment, revision, onError: logError });
+        privateServer.listen(8443, binding);
+        await once(privateServer, 'listening');
+      } catch (error) {
+        logError(error);
+        privateServer?.close();
+        privateServer = undefined;
+      }
+    }
     for (const signal of ['SIGINT', 'SIGTERM']) {
-      process.once(signal, () => {
-        server.close(() => { void pool.end(); });
+      process.once(signal, async () => {
+        await Promise.all([server, privateServer].filter(Boolean).map(listener => new Promise(resolve => listener.close(resolve))));
+        await Promise.all([pool.end(), adminPool?.end()]);
       });
     }
   } catch (error) {
     logError(error);
+    privateServer?.close();
     process.exitCode = 1;
-    await pool.end();
+    await Promise.all([pool.end(), adminPool?.end()]);
   }
 }

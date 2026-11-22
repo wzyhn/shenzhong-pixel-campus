@@ -27,6 +27,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON paperplane_campus.photos TO paperplane_c
 
 004 迁移保留每组历史同名中最早注册者的昵称，其他账号的会话、存档和相册归属不变。需要处理冲突的账号在 `GET /api/campus/session` 收到 `user.nicknameConflict: true`，本人重新选名后恢复进校。冲突期间的普通存档写入返回 `409 nickname_required`。注册或改名碰到已占用昵称时返回 `409 nickname_taken`。
 
+005 是校园后台的独立前滚迁移。先用独立角色执行迁移与授权，再发布使用该版本的 API。公网运行角色只读取后台策略。私有管理接口使用独立数据库角色。端口、权限、调用和恢复边界见 [后台运行手册](../docs/private-admin.md)。
+
 ## 接口
 
 | 请求                              | 响应或写入                                                                                                                              |
