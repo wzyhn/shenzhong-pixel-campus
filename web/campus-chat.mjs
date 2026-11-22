@@ -131,7 +131,7 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
   indicator.innerHTML = child.PPTD?.icon("chat") || "";
   const open = createButton(doc, undefined, "campus-chat-feed-open");
   open.setAttribute("aria-label", "公屏聊天");
-  open.setAttribute("aria-controls", "campus-chat-composer");
+  open.setAttribute("aria-controls", "campus-chat-dialog");
   open.setAttribute("aria-expanded", "false");
   const feed = createElement(doc, "ol", "campus-chat-feed");
   feed.id = "campus-chat-feed";
@@ -145,6 +145,7 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
   top.append(surface);
 
   const panel = createElement(doc, "div", "campus-chat-panel");
+  panel.id = "campus-chat-dialog";
   panel.hidden = true;
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-modal", "true");
@@ -306,7 +307,7 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
     emoji.hidden = active !== "emoji";
     history.hidden = active !== "history";
     ui.dataset.campusChatPanel = active;
-    open.setAttribute("aria-expanded", String(active === "compose"));
+    open.setAttribute("aria-expanded", String(needsModal));
     stockEmoji?.setAttribute("aria-expanded", String(active === "emoji"));
     if (active === "compose") input.focus({ preventScroll: true });
     if (active === "history") {
@@ -529,7 +530,9 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
     });
   }
   listen(doc, "click", event => {
-    if (modal && !panel.contains(event.target) && !open.contains(event.target)) setPanel("");
+    if (!modal || panel.contains(event.target) || open.contains(event.target)) return;
+    const vacant = doc.activeElement === doc.body || panel.contains(doc.activeElement);
+    setPanel("", event.target === mapCanvas && vacant ? trigger : undefined);
   }, true);
   listen(child, "keydown", event => {
     if (event.key === "Enter" && event.target === input && (composing || event.isComposing || event.keyCode === 229)) {
