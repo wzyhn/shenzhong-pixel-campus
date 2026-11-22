@@ -156,6 +156,7 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
   await owner.query('GRANT SELECT, INSERT, UPDATE, DELETE ON paperplane_campus.chat_messages TO ' + role);
 
   const errors = [];
+  const buildRevision = '1'.repeat(40);
   let roomTime = 0;
   const starName = 'QA Star Fixture';
   const starEgg = { txt: 'Synthetic star message', fx: { star: true, toast: 'Synthetic toast' } };
@@ -173,7 +174,8 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
     const presence = createPresenceRoom(() => roomTime);
     const chat = createCampusChat(pool);
     assert.equal(await chat.ready(), true);
-    app = createCampusServer({ store, presence, chat, nameEggs, onError: (error) => errors.push(error) }).listen(0, '127.0.0.1');
+    app = createCampusServer({ store, presence, chat, nameEggs, revision: buildRevision,
+      onError: (error) => errors.push(error) }).listen(0, '127.0.0.1');
     await once(app, 'listening');
     root = 'http://127.0.0.1:' + app.address().port;
   }
@@ -209,7 +211,9 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
   const stateURL = '/api/campus/state';
   const albumURL = '/api/campus/album';
   await expectJSON(request('/healthz'), 200, { ready: true });
-  await expectJSON(request(accountURL), 200, guest);
+  const anonymous = await request(accountURL);
+  assert.equal(anonymous.headers.get('x-campus-revision'), buildRevision);
+  await expectJSON(anonymous, 200, guest);
   await expectJSON(request('/api/auth/session'), 200, { user: null, mode: 'demo' });
   const [oldest, flagged] = legacy;
   const savedBeforeUpgrade = { revision: 7, progress };
@@ -523,6 +527,7 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
   await expectJSON(save(starPlayer, { revision: 1, progress: {}, nickname: ordinaryName }), 200, {
     ...ordinaryProfile, state: { revision: 2, progress: {} },
   });
+  assert.deepEqual((await expectJSON(heartbeat(later, secondRoomTab), 200)).players, regularPeers);
   await expectJSON(save(starPlayer, { revision: 2, progress: {} }), 200, {
     ...ordinaryProfile, state: { revision: 3, progress: {} },
   });

@@ -32,6 +32,7 @@ services:
       timeout: 3s
       retries: 6
       start_period: 15s
+      start_interval: 2s
 
   campus-api:
     build:
@@ -71,6 +72,7 @@ services:
       timeout: 3s
       retries: 6
       start_period: 10s
+      start_interval: 2s
 
 networks:
   campus-storage:

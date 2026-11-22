@@ -97,14 +97,21 @@ export function field(kind, attributes = {}) {
   return { element, control };
 }
 
+let selectCount = 0;
+
 export function select({ id, label, options, value, onChange, disabled, placeholder }) {
-  const state = shallowReactive({ options, value, disabled });
+  const state = shallowReactive({ options, value, disabled, open: false });
+  const popupClass = "paperplane-select-popup-" + ++selectCount;
+  const listId = popupClass + "-options";
   const element = mount(() =>
     h(Select, {
       options: state.options,
       value: state.value,
       disabled: state.disabled,
       placeholder,
+      popupVisible: state.open,
+      popupProps: { overlayClassName: popupClass },
+      onPopupVisibleChange: setOpen,
       onChange(next) {
         state.value = next;
         onChange?.(next);
@@ -114,13 +121,64 @@ export function select({ id, label, options, value, onChange, disabled, placehol
   const input = element.querySelector("input");
   if (id) input.id = id;
   if (label) input.setAttribute("aria-label", label);
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-expanded", "false");
+
+  function getList() {
+    return element.ownerDocument.getElementsByClassName(popupClass)[0]?.querySelector(".t-select__list");
+  }
+  function setOpen(open) {
+    state.open = open;
+    input.setAttribute("aria-expanded", String(open));
+    if (open) void nextTick(syncOptions);
+    else {
+      input.removeAttribute("aria-controls");
+      input.removeAttribute("aria-activedescendant");
+    }
+  }
+  function syncOptions() {
+    const list = state.open && getList();
+    if (!list) return;
+    list.id = listId;
+    list.setAttribute("role", "listbox");
+    if (label) list.setAttribute("aria-label", label);
+    input.setAttribute("aria-controls", listId);
+    const items = list.querySelectorAll(".t-select-option");
+    for (const [index, item] of items.entries()) {
+      item.id = listId + "-" + index;
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", String(item.classList.contains("t-is-selected")));
+      item.setAttribute("aria-disabled", String(item.classList.contains("t-is-disabled")));
+    }
+    const active = list.querySelector(".t-select-option__hover");
+    if (active) input.setAttribute("aria-activedescendant", active.id);
+    else input.removeAttribute("aria-activedescendant");
+  }
+  input.addEventListener("keydown", (event) => {
+    if (event.isComposing) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") void nextTick(syncOptions);
+    if (event.key !== "Enter") return;
+    // TDesign Input dispatches Enter separately from Select's arrow-key handler.
+    event.preventDefault();
+    if (state.disabled) return;
+    if (!state.open) {
+      setOpen(true);
+      return;
+    }
+    const list = getList();
+    const highlighted = list?.querySelector(".t-select-option__hover:not(.t-is-disabled)");
+    const selected = list?.querySelector(".t-select-option.t-is-selected:not(.t-is-disabled)");
+    (highlighted ?? selected)?.click();
+  });
   return {
     element,
     setOptions(next) {
       state.options = next;
+      if (state.open) void nextTick(syncOptions);
     },
     setValue(next) {
       state.value = next;
+      if (state.open) void nextTick(syncOptions);
     },
     setDisabled(next) {
       state.disabled = next;

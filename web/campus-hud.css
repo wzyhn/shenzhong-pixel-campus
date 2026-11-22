@@ -105,6 +105,12 @@
   touch-action: manipulation;
 }
 
+#ppChrome #campus-audio-weather:focus-visible,
+#ppChrome .campus-quick-panel button:focus-visible {
+  outline: 2px solid #a8ccff;
+  outline-offset: 2px;
+}
+
 body.campus-hud-hidden
   #ppStage
   > :is(#ppChrome, #pp-notice, #toast, #hint, #mini, #olist, #chatlog, #mob) {

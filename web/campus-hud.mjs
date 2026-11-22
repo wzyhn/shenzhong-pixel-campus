@@ -285,15 +285,22 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
       const selected = child.__ppEngine.state().light;
       for (const [value, option] of choices)
         option.setAttribute("aria-pressed", String(value === selected));
+      music.focus({ preventScroll: true });
     }
   }
 
   function outside(event) {
-    if (!panel.hidden && !actions.contains(event.target) && !panel.contains(event.target))
+    if (!panel.hidden && event.target !== settings && !settings.contains(event.target) && !panel.contains(event.target))
       setOpen(false);
   }
 
   function onKey(event) {
+    if (event.key === "Tab" && event.shiftKey && !panel.hidden && doc.activeElement === music) {
+      event.preventDefault();
+      setOpen(false);
+      settings.focus({ preventScroll: true });
+      return;
+    }
     if (event.key !== "Escape") return;
     if (doc.body.classList.contains("campus-hud-hidden") && !child.ppBlocksMove) toggleHud();
     else if (!panel.hidden) {
@@ -303,6 +310,22 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }
+
+  function watchProfileClose() {
+    // The native menu removes the profile item before opening the profile.
+    const profile = doc.getElementById("pp-identity");
+    if (profile && !profile.hidden)
+      profileFocus.observe(profile, { attributes: true, attributeFilter: ["hidden"] });
+  }
+  const profileFocus = new child.MutationObserver(([change]) => {
+    const profile = change.target;
+    if (!profile.hidden) return;
+    profileFocus.disconnect();
+    const active = doc.activeElement;
+    const lostFocus = active === doc.body || !active?.getClientRects().length || profile.contains(active);
+    if (!child.ppBlocksMove && lostFocus && menu.getClientRects().length)
+      menu.focus({ preventScroll: true });
+  });
 
   function resume(event) {
     if (!event.isTrusted || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -324,6 +347,7 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
   syncEffects();
   syncWeather();
   doc.addEventListener("pointerdown", outside, true);
+  doc.addEventListener("focusin", outside, true);
   doc.addEventListener("keydown", onKey, true);
   doc.addEventListener("click", syncEffects);
   child.addEventListener("pointerdown", resume, true);
@@ -331,12 +355,15 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
   child.addEventListener("keydown", resume, true);
   child.addEventListener("pp:entered", syncWeather);
   child.addEventListener("pp:principal-change", syncWeather);
+  child.addEventListener("pp:profile", watchProfileClose);
   return () => {
     unsubscribe();
     closeStick();
     closeTap();
     stockHide.disconnect();
+    profileFocus.disconnect();
     doc.removeEventListener("pointerdown", outside, true);
+    doc.removeEventListener("focusin", outside, true);
     doc.removeEventListener("keydown", onKey, true);
     doc.removeEventListener("click", syncEffects);
     child.removeEventListener("pointerdown", resume, true);
@@ -344,6 +371,7 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
     child.removeEventListener("keydown", resume, true);
     child.removeEventListener("pp:entered", syncWeather);
     child.removeEventListener("pp:principal-change", syncWeather);
+    child.removeEventListener("pp:profile", watchProfileClose);
     originalRunSlot.replaceWith(run);
     originalMenuSlot.replaceWith(menu);
     actions.remove();

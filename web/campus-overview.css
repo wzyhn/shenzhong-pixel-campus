@@ -8,8 +8,8 @@
   display: grid !important;
   grid-template-columns: max-content minmax(248px, 320px);
   grid-template-areas: "header header" "atlas directory" "tools directory";
-  grid-template-rows: auto auto auto;
-  align-content: center;
+  grid-template-rows: repeat(3, max-content);
+  align-content: safe center;
   align-items: start;
   justify-content: center;
   gap: 10px 16px !important;
@@ -358,9 +358,17 @@
     --overview-atlas-width: min(calc(100vw - 28px), calc((100dvh - 242px) * 0.91176), 672px);
     grid-template-columns: min(calc(100vw - 28px), 674px);
     grid-template-areas: "header" "atlas" "tools" "directory";
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: repeat(4, max-content);
     align-content: start;
     gap: 8px !important;
+  }
+
+  .campus-overview-header {
+    position: sticky;
+    z-index: 3;
+    top: max(8px, env(safe-area-inset-top));
+    border-radius: 8px;
+    background: #10262e;
   }
 
   #mapBox.campus-overview .pp-map-viewport {
@@ -368,41 +376,51 @@
   }
 
   .campus-overview-directory {
-    height: clamp(132px, calc(100dvh - var(--overview-atlas-width) * 1.09655 - 144px), 300px);
+    height: clamp(220px, calc(100dvh - var(--overview-atlas-width) * 1.09655 - 144px), 300px);
     padding: 8px 10px;
     gap: 5px;
   }
 }
 
-@media (min-width: 520px) and (max-width: 779px) {
+@media (orientation: portrait) and (max-height: 650px) {
   #mapBox.campus-overview {
-    --overview-atlas-width: min(calc(100vw - 28px), calc((100dvh - 316px) * 0.91176), 672px);
-  }
-
-  .campus-overview-directory {
-    grid-template-columns: max-content minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr);
-    column-gap: 12px;
-  }
-
-  .campus-overview-directory h3 {
-    align-self: center;
-  }
-
-  .campus-overview-selection,
-  .campus-overview-list {
-    grid-column: 1 / -1;
-  }
-
-  .campus-overview-list {
-    grid-row: 3;
+    --overview-atlas-width: min(calc(100vw - 28px), max(184px, calc((100dvh - 292px) * 0.91176)));
   }
 }
 
-@media (max-height: 520px) and (max-width: 779px) {
+@media (orientation: landscape) and (min-width: 520px) and (max-width: 779px) {
   #mapBox.campus-overview {
-    --overview-atlas-width: min(calc(100vw - 28px), max(200px, calc((100dvh - 210px) * 0.91176)));
+    --overview-atlas-width: min(38vw, max(138px, calc((100dvh - 138px) * 0.91176)));
+    grid-template-columns: max-content minmax(0, 320px);
+    grid-template-areas: "header header" "atlas directory" "tools directory";
+    grid-template-rows: repeat(3, max-content);
+    align-content: safe center;
+    gap: 8px 12px !important;
   }
+
+  .campus-overview-directory {
+    height: calc(var(--overview-atlas-width) * 1.09655 + 54px);
+  }
+}
+
+#mapBox.campus-overview[data-keyboard] {
+  top: var(--overview-keyboard-top, 0px) !important;
+  bottom: var(--overview-keyboard-bottom, 0px) !important;
+  grid-template-columns: min(calc(100vw - 28px), 520px);
+  grid-template-areas: "header" "directory";
+  grid-template-rows: max-content minmax(158px, 1fr);
+  align-content: start;
+  gap: 8px !important;
+}
+
+#mapBox.campus-overview[data-keyboard] > :is(.pp-map-viewport, .pp-map-footer) {
+  display: none !important;
+}
+
+#mapBox.campus-overview[data-keyboard] .campus-overview-directory {
+  height: auto;
+  padding: 8px 10px;
+  gap: 5px;
 }
 
 @media (max-width: 380px) {

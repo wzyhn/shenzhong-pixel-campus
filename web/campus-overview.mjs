@@ -44,6 +44,56 @@ function isolateDialog(dialog) {
   };
 }
 
+function trackSearchViewport(child, map, search, directory) {
+  const outer = child.parent?.visualViewport;
+  const inner = child.visualViewport;
+  const viewports = new Set([inner, outer].filter(Boolean));
+  let compact = false;
+
+  function insets(viewport, frameTop, frameBottom) {
+    if (!viewport || viewport.scale !== 1 || !Number.isFinite(viewport.offsetTop) ||
+        !Number.isFinite(viewport.height) || viewport.height <= 0) return [0, 0];
+    return [
+      Math.max(0, viewport.offsetTop - frameTop),
+      Math.max(0, frameBottom - viewport.offsetTop - viewport.height),
+    ];
+  }
+
+  function update() {
+    const frame = child.frameElement?.getBoundingClientRect();
+    const [innerTop, innerBottom] = insets(inner, 0, child.innerHeight);
+    const [outerTop, outerBottom] = frame ? insets(outer, frame.top, frame.bottom) : [0, 0];
+    const top = Math.max(innerTop, outerTop);
+    const bottom = Math.max(innerBottom, outerBottom);
+    const visibleHeight = child.innerHeight - top - bottom;
+    const wasCompact = compact;
+    const focused = map.ownerDocument.activeElement;
+    compact = (compact || search === focused) && top + bottom >= 64 && visibleHeight >= 76;
+    map.toggleAttribute("data-keyboard", compact);
+    if (compact) {
+      map.style.setProperty("--overview-keyboard-top", `${Math.round(top)}px`);
+      map.style.setProperty("--overview-keyboard-bottom", `${Math.round(bottom)}px`);
+    } else if (wasCompact && directory.contains(focused)) {
+      directory.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+
+  search.addEventListener("focus", update);
+  child.addEventListener("resize", update);
+  for (const viewport of viewports) {
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+  }
+  return () => {
+    child.removeEventListener("resize", update);
+    search.removeEventListener("focus", update);
+    for (const viewport of viewports) {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    }
+  };
+}
+
 function decorateMap(child, map, opener) {
   const doc = child.document;
   const game = child.PPGame;
@@ -202,12 +252,14 @@ function decorateMap(child, map, opener) {
   map.insertBefore(header, footer);
   map.insertBefore(directory, footer);
   const restoreBackground = isolateDialog(map);
+  const stopTrackingViewport = trackSearchViewport(child, map, search, directory);
   close.focus({ preventScroll: true });
   return {
     map,
     opener,
     close,
     restore() {
+      stopTrackingViewport();
       transformObserver.disconnect();
       restoreBackground();
       const trigger = opener?.isConnected && opener.getClientRects().length
@@ -218,7 +270,7 @@ function decorateMap(child, map, opener) {
   };
 }
 
-export function connectCampusOverview(child) {
+export function connectCampusOverview(child, { dismissEmoji } = {}) {
   const doc = child.document;
   const stage = doc.getElementById("ppStage");
   const trigger = doc.getElementById("pp-location");
@@ -235,8 +287,13 @@ export function connectCampusOverview(child) {
       current.restore();
       current = null;
     }
-    if (!styled || !map || current) return;
-    const opener = pendingOpener ?? doc.activeElement;
+    if (!map || current) return;
+    const emojiOpener = dismissEmoji?.();
+    if (!styled) {
+      pendingOpener ??= emojiOpener;
+      return;
+    }
+    const opener = pendingOpener ?? emojiOpener ?? doc.activeElement;
     pendingOpener = null;
     current = decorateMap(child, map, opener === doc.body ? trigger : opener);
   }
