@@ -81,11 +81,12 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
   const suffix = randomBytes(8).toString('hex');
   const database = 'paperplane_campus_db_' + suffix;
   const role = 'paperplane_campus_app_' + suffix;
+  const runtimePassword = randomBytes(24).toString('hex');
   const admin = createPool(provisionURL.href);
   const databaseURL = new URL(database, provisionURL.href);
   const runtimeURL = new URL(databaseURL.href);
   runtimeURL.username = role;
-  runtimeURL.password = '';
+  runtimeURL.password = runtimePassword;
   let owner;
   let pool;
   let app;
@@ -113,7 +114,7 @@ test('PostgreSQL persists isolated accounts, CAS state, albums and revocation ac
     }
   });
 
-  await admin.query('CREATE ROLE ' + role + ' LOGIN');
+  await admin.query(`CREATE ROLE ${role} LOGIN PASSWORD '${runtimePassword}'`);
   await admin.query('CREATE DATABASE ' + database);
   owner = createPool(databaseURL.href);
   const priorMigrations = ['001_accounts.sql', '002_album.sql', '003_chat.sql'];
