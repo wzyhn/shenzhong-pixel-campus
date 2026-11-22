@@ -1,0 +1,68 @@
+services:
+  web:
+    build:
+      context: ./web
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-local}
+    ports: ["127.0.0.1:18080:8080"]
+    read_only: true
+    tmpfs: ["/run/campus:mode=1777,size=32m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PAPERPLANE_CAMPUS_ASSET_MODE: demo
+    depends_on:
+      campus-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/release.json && wget -q -O /dev/null http://127.0.0.1:8080/api/campus/session"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  campus-api:
+    build:
+      context: ./campus-server
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PAPERPLANE_CAMPUS_ORIGIN: http://localhost:18080
+      PAPERPLANE_CAMPUS_DATABASE_URL: postgresql://campus_demo_app:demo@db:5432/campus_demo
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    build:
+      context: ./campus-server
+    command: ["node", "migrate.mjs"]
+    restart: "no"
+    environment:
+      PAPERPLANE_CAMPUS_MIGRATION_DATABASE_URL: postgresql://campus_demo_migrator:demo@db:5432/campus_demo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: campus_demo
+    volumes:
+      - demo-db:/var/lib/postgresql/data
+      - ./scripts/demo-db.sql:/docker-entrypoint-initdb.d/00-campus.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "campus_demo"]
+      interval: 4s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  demo-db:

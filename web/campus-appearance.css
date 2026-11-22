@@ -1,0 +1,109 @@
+.campus-nickname-host > .campus-setup {
+  width: min(100%, 640px);
+  padding: clamp(16px, 4vw, 28px);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-large);
+  background: var(--td-bg-color-container);
+}
+
+.campus-setup h1 {
+  margin: 0 0 16px;
+  font-size: clamp(22px, 5vw, 28px);
+  line-height: 1.25;
+}
+
+.campus-setup-body {
+  display: grid;
+  grid-template-columns: minmax(125px, 150px) minmax(0, 1fr);
+  gap: clamp(14px, 4vw, 26px);
+  align-items: start;
+}
+
+.campus-avatar-preview {
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.campus-avatar-preview canvas {
+  display: block;
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+  margin-inline: auto;
+  border-radius: var(--td-radius-medium);
+  image-rendering: pixelated;
+}
+
+.campus-avatar-preview figcaption {
+  display: grid;
+  gap: 2px;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+
+.campus-avatar-preview figcaption span {
+  color: var(--td-text-color-secondary);
+  font-size: 13px;
+}
+
+.campus-setup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.campus-setup-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.campus-setup-field label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.campus-setup-name {
+  grid-column: 1 / -1;
+}
+.campus-setup-field > div,
+.campus-setup .t-select,
+.campus-setup .t-select__wrap,
+.campus-setup .t-select-input,
+.campus-setup .t-popup__reference,
+.campus-setup .t-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.campus-setup .t-input__inner {
+  min-width: 0;
+}
+.campus-setup footer {
+  margin-top: 15px;
+}
+.campus-setup footer .t-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+#campus-nickname-status {
+  margin: 0 0 7px;
+  color: var(--td-text-color-secondary);
+  font-size: 14px;
+}
+
+#campus-nickname-status:empty {
+  margin: 0;
+}
+
+@media (max-width: 500px) {
+  .campus-setup-body {
+    grid-template-columns: 1fr;
+  }
+  .campus-avatar-preview canvas {
+    max-width: 110px;
+  }
+}

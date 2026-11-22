@@ -1,0 +1,308 @@
+#ppStage {
+  --campus-detail-ink: #c8d9e0;
+  --campus-detail-icon: #b9d7ff;
+}
+
+#ppStage #ppChrome :is(.pp-top, #pp-back-home, #ppPeople, #ppWalkNav),
+#campus-author button {
+  color: var(--campus-control-ink);
+  border-color: var(--campus-control-stroke);
+  background: var(--campus-control-surface);
+  box-shadow: 0 1px 5px #0a161955;
+}
+
+#ppStage #ppChrome {
+  --campus-left-safe: env(safe-area-inset-left, 0px);
+  --campus-right-safe: env(safe-area-inset-right, 0px);
+  --campus-left-width: min(244px, calc(100cqw - var(--campus-left-safe) - var(--campus-right-safe)));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: env(safe-area-inset-top, 0px) 0 0 var(--campus-left-safe);
+}
+
+#ppStage #ppChrome > :is(.pp-top, #ppPeople, #pp-back-home) {
+  position: static;
+  box-sizing: border-box;
+  flex: none;
+  width: var(--campus-left-width);
+  max-width: var(--campus-left-width);
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+#ppStage #ppChrome > .pp-top {
+  order: 0;
+  gap: 0;
+}
+
+#ppStage #ppChrome > #ppPeople {
+  order: 1;
+  border-top: 0;
+}
+
+#ppStage #ppChrome > #pp-back-home {
+  order: 2;
+  border-top: 0;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+#ppStage #ppChrome .pp-top .pp-place {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 0;
+  color: var(--campus-control-ink);
+}
+
+#ppStage #ppChrome .pp-top .pp-online {
+  flex: none;
+  border-radius: 0;
+  color: var(--campus-detail-ink);
+}
+
+#ppStage #ppChrome .pp-top .pp-online:before {
+  background: var(--campus-control-stroke);
+}
+
+#ppStage #ppChrome .pp-top :is(.pp-place, .pp-online) .td-icon,
+#ppStage #ppChrome #ppPeople .prs-symbol {
+  color: var(--campus-detail-icon);
+}
+
+#ppStage #ppChrome #ppPeople :is(.prs-person, .prs-miniact, .campus-position-settings, .campus-position-close) {
+  border-color: var(--campus-control-stroke);
+}
+
+#ppStage #ppChrome #ppPeople .prs-person:is(:hover, :focus-visible, :active),
+#ppStage #ppChrome .pp-top button:active {
+  background: #263d47;
+}
+
+#ppStage #ppChrome #ppPeople .prs-avatar {
+  color: var(--campus-detail-icon);
+  background: #28485d;
+}
+
+#ppStage #ppChrome #ppPeople .prs-symbol {
+  opacity: 0.86;
+}
+
+#ppStage #ppChrome #ppPeople :is(.prs-person-label small, .prs-help, .prs-miniact, .campus-position-close),
+#ppStage #ppChrome #ppWalkNav .prs-cancel {
+  color: var(--campus-detail-ink);
+}
+
+#campus-author {
+  position: absolute;
+  z-index: 17;
+  left: var(--pp-hud-left, 14px);
+  bottom: calc(var(--pp-safe-bottom, 0px) + 68px);
+  color: var(--campus-control-ink);
+  font: 600 13px/1.3 system-ui, sans-serif;
+}
+
+body.clean #campus-author,
+body.pp-paused #campus-author,
+body.pp-dress #campus-author,
+body.campus-hud-hidden #campus-author,
+#campus-author [hidden] {
+  display: none;
+}
+
+#campus-author button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 9px;
+  cursor: pointer;
+  touch-action: manipulation;
+  font: inherit;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 9px;
+}
+
+#campus-author button:focus-visible,
+#campus-author input:focus-visible {
+  outline: 2px solid var(--campus-detail-icon);
+  outline-offset: 2px;
+}
+
+#campus-author-contact {
+  box-sizing: border-box;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: min(225px, calc(100cqw - var(--pp-hud-left, 14px) - var(--pp-inset-right, 0px) - 14px));
+  padding: 9px;
+  color: var(--campus-control-ink);
+  border: 1px solid var(--campus-control-stroke);
+  border-radius: 11px;
+  background: rgb(15 30 34 / 96%);
+  box-shadow: 0 2px 10px #0a161977;
+}
+
+#campus-author-contact div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+#campus-author-contact input {
+  min-width: 0;
+  padding: 5px;
+  color: inherit;
+  font: inherit;
+  border: 1px solid var(--campus-control-stroke);
+  border-radius: 5px;
+  background: transparent;
+  user-select: text;
+}
+
+#campus-author-contact button {
+  color: #d5e9ff;
+  background: #28485d;
+}
+
+#campus-author-contact p {
+  margin: 5px 0 0;
+  color: var(--campus-detail-ink);
+  font-size: 12px;
+}
+
+#campus-author-contact [role="status"]:empty {
+  margin: 0;
+}
+
+#campus-author-contact [data-copied] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@container (width <= 600px) {
+  #ppStage #ppChrome {
+    --campus-chat-width: clamp(76px, calc(100cqw - 254px - var(--campus-right-safe)), 208px);
+    --campus-left-width: min(244px, calc(100cqw - var(--campus-left-safe) - var(--campus-right-safe) - var(--campus-chat-width) - 6px));
+  }
+
+  #ppChrome .pp-top .pp-place {
+    min-width: 0;
+    max-width: none;
+    padding-inline: 8px;
+  }
+
+  #ppChrome #pp-place {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #ppChrome .pp-top .pp-online {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+
+  #ppChrome #ppWalkNav {
+    bottom: calc(var(--pp-safe-bottom, 0px) + 120px);
+    max-width: min(330px, calc(100cqw - var(--pp-inset-left, 0px) - var(--pp-inset-right, 0px) - 28px));
+  }
+}
+
+@media (pointer: coarse) {
+  #campus-author {
+    bottom: calc(var(--campus-dock-bottom) + clamp(76px, 22cqw, 94px) + 8px);
+  }
+
+  #ppStage #ppChrome #ppPeople .prs-rows {
+    max-height: 54px;
+    touch-action: pan-y;
+  }
+
+  #ppStage #ppChrome #ppPeople .prs-person {
+    box-sizing: border-box;
+    min-height: 27px;
+    padding: 2px 7px;
+    gap: 5px;
+  }
+
+  #ppStage #ppChrome #ppPeople .prs-avatar {
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
+  }
+
+  #ppStage #ppChrome #ppPeople .prs-symbol .td-icon {
+    font-size: 14px;
+  }
+
+  #ppChrome #ppPeople [data-person="self"] .prs-person-label b {
+    max-width: none;
+  }
+
+  #ppChrome #ppPeople .prs-miniact,
+  #ppChrome #ppPeople .campus-position-close,
+  #ppChrome #ppWalkNav .prs-cancel {
+    min-height: 44px;
+  }
+
+  #ppChrome #ppWalkNav .prs-distance {
+    white-space: normal;
+  }
+
+  @container (width <= 600px) {
+    #ppStage:has(#campus-author) #ppChrome #ppWalkNav {
+      left: auto;
+      right: max(14px, var(--pp-inset-right, 0px));
+      max-width: min(330px, calc(100cqw - var(--pp-hud-left) - var(--pp-inset-right, 0px) - 68px));
+      transform: none;
+    }
+  }
+
+  @container (width > 600px) and (height <= 500px) {
+    #campus-author {
+      bottom: calc(var(--campus-dock-bottom) + 84px);
+    }
+
+    #campus-author-contact {
+      left: calc(100% + 8px);
+      bottom: -6px;
+    }
+
+    #ppChrome #ppWalkNav {
+      bottom: calc(var(--pp-safe-bottom, 0px) + 16px);
+      max-width: min(330px, calc(100cqw - var(--pp-inset-left, 0px) - var(--pp-inset-right, 0px) - 386px));
+    }
+  }
+
+  @container (orientation: landscape) and (height <= 360px) {
+    #campus-author {
+      --campus-credit-left: clamp(
+        var(--pp-hud-left, 14px),
+        calc(100cqw - env(safe-area-inset-right, 0px) - 233px),
+        calc(env(safe-area-inset-left, 0px) + 252px)
+      );
+      left: var(--campus-credit-left);
+      bottom: calc(var(--campus-dock-bottom) + 52px);
+    }
+
+    #campus-author-contact {
+      left: 0;
+      bottom: calc(100% + 6px);
+      width: min(225px, calc(100cqw - var(--campus-credit-left) - env(safe-area-inset-right, 0px) - 8px));
+    }
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #campus-author {
+    left: calc(var(--campus-dock-edge, 18px) + 52px);
+    bottom: var(--campus-dock-bottom);
+  }
+}

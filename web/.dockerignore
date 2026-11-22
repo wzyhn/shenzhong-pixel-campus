@@ -1,0 +1,11 @@
+*
+!package.json
+!package-lock.json
+!*.mjs
+!*.css
+!*.conf
+!entrypoint.sh
+!campus-index.html
+!fixture/
+!fixture/**
+*.test.mjs

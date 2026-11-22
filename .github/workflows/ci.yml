@@ -1,0 +1,45 @@
+name: Campus checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Campus checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_PASSWORD: campus-integration
+        ports: ["5432/tcp"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
+        with:
+          node-version: '22'
+      - run: node scripts/check-tracked-source.mjs
+      - run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix campus-server --ignore-scripts --no-audit --no-fund
+      - run: node --test web/*.test.mjs
+      - run: npm test --prefix campus-server
+        env:
+          WECONQ_TEST_POSTGRES_DSN: postgresql://postgres:campus-integration@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres
+      - run: docker compose --env-file .env.example -f compose.coolify.yml config --quiet
+      - run: docker compose -p campus-fixture -f compose.demo.yml up -d --build --wait --wait-timeout 110
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+      - run: node scripts/smoke-demo.mjs
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+      - if: always()
+        run: docker compose -p campus-fixture -f compose.demo.yml down --volumes

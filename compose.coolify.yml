@@ -1,0 +1,78 @@
+services:
+  web:
+    build:
+      context: ./web
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-local}
+    expose: ["8080"]
+    init: true
+    read_only: true
+    tmpfs: ["/run/campus:mode=1777,size=128m"]
+    mem_limit: 192m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    environment:
+      PAPERPLANE_CAMPUS_ASSET_MODE: production
+      PAPERPLANE_CAMPUS_ASSET_SHA256: ${PAPERPLANE_CAMPUS_ASSET_SHA256:?}
+      PAPERPLANE_CAMPUS_PROXY_APPEND: ${PAPERPLANE_CAMPUS_PROXY_APPEND:-0}
+    volumes:
+      - type: bind
+        source: ${PAPERPLANE_CAMPUS_ASSETS_DIR:?}
+        target: /app/assets
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      campus-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/release.json && wget -q -O /dev/null http://127.0.0.1:8080/api/campus/session"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+
+  campus-api:
+    build:
+      context: ./campus-server
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-local}
+    networks: [default, campus-storage]
+    expose: ["8080"]
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:mode=1777,size=16m"]
+    mem_limit: 192m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    environment:
+      PAPERPLANE_CAMPUS_ORIGIN: ${PAPERPLANE_CAMPUS_ORIGIN:?}
+      PAPERPLANE_CAMPUS_TRUST_PROXY: "1"
+      PAPERPLANE_CAMPUS_DATABASE_URL_FILE: /app/private/database-url
+      PAPERPLANE_CAMPUS_NAME_EGGS_FILE: /app/private/name-eggs.json
+    volumes:
+      - type: bind
+        source: ${PAPERPLANE_CAMPUS_DATABASE_URL_FILE:?}
+        target: /app/private/database-url
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${PAPERPLANE_CAMPUS_NAME_EGGS_FILE:?}
+        target: /app/private/name-eggs.json
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 8s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+networks:
+  campus-storage:
+    external: true
+    name: ${PAPERPLANE_CAMPUS_STORAGE_NETWORK:?}
