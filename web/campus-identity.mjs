@@ -595,6 +595,16 @@ export function mountCampusNickname(host, { identity, onSession }) {
   loading.setAttribute("role", "status");
   loading.textContent = "正在打开校园…";
   host.replaceChildren(loading);
+  const viewport = doc.defaultView?.visualViewport;
+  function resizeEntry() {
+    if (Number.isFinite(viewport?.height) && viewport.scale === 1) {
+      host.style.setProperty("--campus-entry-visible-height", `${viewport.height}px`);
+    } else {
+      host.style.removeProperty("--campus-entry-visible-height");
+    }
+  }
+  viewport?.addEventListener("resize", resizeEntry);
+  if (viewport) resizeEntry();
   let destroyed = false;
   let busy = false;
   let admitted = false;
@@ -614,16 +624,31 @@ export function mountCampusNickname(host, { identity, onSession }) {
       label.htmlFor = "campus-nickname";
       label.textContent = "昵称";
       const { element, control } = design.field("input", {
-        id: label.htmlFor, name: "nickname", maxlength: 48, placeholder: "输入昵称", autocomplete: "nickname",
-        "aria-describedby": "campus-nickname-status", enterkeyhint: "go",
+        id: label.htmlFor, name: "nickname", maxlength: 48, placeholder: "给自己起个昵称", autocomplete: "nickname",
+        "aria-describedby": "campus-nickname-hint campus-nickname-status", "aria-required": "true", enterkeyhint: "go",
       });
+      const hint = doc.createElement("p");
+      hint.id = "campus-nickname-hint";
+      hint.className = "campus-setup-hint";
+      hint.textContent = "1–24 个字符，可用化名，校园内可见。";
       const status = doc.createElement("p");
       status.id = "campus-nickname-status";
       status.setAttribute("role", "status");
+      const header = doc.createElement("header");
+      header.className = "campus-setup-header";
       const heading = doc.createElement("h1");
+      heading.id = "campus-entry-title";
       heading.textContent = repair ? "更换校园昵称" : "深中随身校园";
+      header.append(heading);
+      if (!repair) {
+        const note = doc.createElement("p");
+        note.textContent = "进度会保存，下次用此浏览器继续。";
+        header.append(note);
+      }
       const fields = doc.createElement("form");
       fields.className = "campus-nickname-form campus-setup";
+      fields.setAttribute("aria-labelledby", heading.id);
+      if (repair) fields.classList.add("campus-setup--repair");
       const button = design.button(repair ? "保存并进入校园" : "进入校园", undefined, "primary");
       button.type = "submit";
       button.disabled = true;
@@ -633,7 +658,7 @@ export function mountCampusNickname(host, { identity, onSession }) {
       inputs.className = "campus-setup-fields";
       const nickname = doc.createElement("div");
       nickname.className = "campus-setup-field campus-setup-name";
-      nickname.append(label, element);
+      nickname.append(label, element, hint);
       inputs.append(nickname, ...(setup?.inputs || []));
       let body = inputs;
       if (setup) {
@@ -642,13 +667,21 @@ export function mountCampusNickname(host, { identity, onSession }) {
         body.append(setup.preview, inputs);
       }
       const actions = doc.createElement("footer");
+      actions.className = "campus-setup-footer";
       actions.append(status, button);
-      fields.append(heading, body, actions);
+      fields.append(header, body, actions);
       host.replaceChildren(fields);
-      control.addEventListener("input", () => setup?.describe(control.value));
+      control.addEventListener("input", () => {
+        setup?.describe(control.value);
+        if (control.hasAttribute("aria-invalid")) {
+          control.removeAttribute("aria-invalid");
+          status.textContent = "";
+        }
+      });
       let previewReady = repair;
       if (repair) {
         control.value = repairSession.user.nickname;
+        control.setAttribute("aria-invalid", "true");
         button.disabled = false;
         status.textContent = "这个昵称已有人使用，请换一个昵称后继续。";
       }
@@ -663,14 +696,16 @@ export function mountCampusNickname(host, { identity, onSession }) {
         event.preventDefault();
         if (busy || destroyed || !previewReady) return;
         if (!validNickname(control.value.trim())) {
-          status.textContent = "请填写 1–24 个字的昵称。";
+          status.textContent = "请填写 1–24 个字符的昵称。";
+          control.setAttribute("aria-invalid", "true");
           control.focus();
           return;
         }
         busy = true;
         button.disabled = true;
+        control.removeAttribute("aria-invalid");
         setup?.setDisabled(true);
-        status.textContent = repair ? "正在保存昵称…" : "正在登录…";
+        status.textContent = repair ? "正在保存昵称…" : "正在进入校园…";
         try {
           const result = repair ? await identity.rename(control.value) : await identity.login(control.value, setup.value());
           if (result.user.nicknameConflict) void form(result);
@@ -678,8 +713,11 @@ export function mountCampusNickname(host, { identity, onSession }) {
         } catch (error) {
           if (!destroyed) {
             status.textContent = error instanceof NicknameTaken || error instanceof NicknameRateLimited ? error.message :
-              repair ? "暂时无法保存昵称，请重试。" : "暂时无法登录，请重试。";
-            if (error instanceof NicknameTaken) control.focus({ preventScroll: true });
+              repair ? "暂时无法保存昵称，请重试。" : "暂时无法进入校园，请重试。";
+            if (error instanceof NicknameTaken) {
+              control.setAttribute("aria-invalid", "true");
+              control.focus({ preventScroll: true });
+            }
           }
         }
         finally {
@@ -715,6 +753,7 @@ export function mountCampusNickname(host, { identity, onSession }) {
   load();
   return () => {
     destroyed = true;
+    viewport?.removeEventListener("resize", resizeEntry);
     appearance?.destroy();
   };
 }

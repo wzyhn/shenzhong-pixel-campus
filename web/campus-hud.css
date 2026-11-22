@@ -76,8 +76,8 @@
 #ppStage {
   --campus-dock-edge: clamp(10px, 3.2cqw, 18px);
   --campus-dock-bottom: calc(var(--pp-safe-bottom, 0px) + 12px);
-  --campus-control-surface: rgb(15 30 34 / 89%);
-  --campus-control-stroke: rgb(224 245 255 / 25%);
+  --campus-control-surface: rgb(18 32 38 / 84%);
+  --campus-control-stroke: rgb(224 245 255 / 22%);
   --campus-control-ink: #f5fafc;
   --campus-control-size: 38px;
   --campus-camera-size: 46px;
@@ -128,6 +128,38 @@ body.campus-hud-hidden
   height: var(--campus-control-size);
   min-width: 0;
   min-height: 0;
+}
+
+#ppChrome .campus-activity-strip {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--campus-control-stroke);
+  border-radius: 10px;
+  background: var(--campus-control-surface);
+  box-shadow: 0 2px 6px #0a161944;
+  backdrop-filter: blur(8px);
+}
+
+#ppChrome .campus-activity-strip :is(#pp-run, #pp-menu, #campus-audio-weather) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+#ppChrome .campus-activity-strip button + button {
+  border-inline-start: 1px solid var(--campus-control-stroke);
+}
+
+#ppChrome .campus-activity-strip button:first-child {
+  border-start-start-radius: 9px;
+  border-end-start-radius: 9px;
+}
+
+#ppChrome .campus-activity-strip button:last-child {
+  border-start-end-radius: 9px;
+  border-end-end-radius: 9px;
 }
 
 #ppChrome .pp-activities #pp-camera {
@@ -219,8 +251,8 @@ body:has(
 @media (pointer: coarse) {
   #ppStage #stick {
     bottom: var(--campus-dock-bottom);
-    width: clamp(76px, 22cqw, 94px);
-    height: clamp(76px, 22cqw, 94px);
+    width: clamp(66px, 19cqw, 82px);
+    height: clamp(66px, 19cqw, 82px);
     border-color: var(--campus-control-stroke);
     background: rgb(15 30 34 / 60%);
     box-shadow: 0 2px 8px #0a161944;
@@ -279,8 +311,8 @@ body:has(
 
 @container (height <= 500px) {
   #ppStage #stick {
-    width: 76px;
-    height: 76px;
+    width: 66px;
+    height: 66px;
   }
 }
 

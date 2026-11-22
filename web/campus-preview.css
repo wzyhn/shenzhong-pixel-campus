@@ -47,10 +47,18 @@ body {
 .campus-nickname-host {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: min(100%, var(--campus-entry-visible-height, 100%));
   overflow: auto;
-  padding: clamp(16px, 5vw, 40px);
+  overscroll-behavior-y: contain;
+  padding: clamp(12px, 3vw, 30px);
   align-items: center;
+  background: linear-gradient(154deg, #edf4ea, #d8e8dd);
+}
+
+@media (orientation: landscape) and (max-height: 480px) {
+  .campus-nickname-host {
+    padding-block: 10px;
+  }
 }
 
 .campus-nickname-host > * {

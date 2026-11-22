@@ -1,6 +1,10 @@
 #ppStage {
   --campus-detail-ink: #c8d9e0;
   --campus-detail-icon: #b9d7ff;
+  --campus-left-safe: env(safe-area-inset-left, 0px);
+  --campus-right-safe: env(safe-area-inset-right, 0px);
+  --campus-corner-height: 40px;
+  --campus-left-width: min(216px, calc((100cqw - var(--campus-left-safe) - var(--campus-right-safe)) * .53));
 }
 
 #ppStage #ppChrome :is(.pp-top, #pp-back-home, #ppPeople, #ppWalkNav),
@@ -12,9 +16,6 @@
 }
 
 #ppStage #ppChrome {
-  --campus-left-safe: env(safe-area-inset-left, 0px);
-  --campus-right-safe: env(safe-area-inset-right, 0px);
-  --campus-left-width: min(244px, calc(100cqw - var(--campus-left-safe) - var(--campus-right-safe)));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -36,11 +37,58 @@
 #ppStage #ppChrome > .pp-top {
   order: 0;
   gap: 0;
+  height: var(--campus-corner-height);
+  min-height: var(--campus-corner-height);
+}
+
+#ppStage #ppChrome .pp-top > button {
+  box-sizing: border-box;
+  height: calc(var(--campus-corner-height) - 2px);
+  min-height: 0;
+  font-size: 13px;
+}
+
+#ppStage #ppChrome .pp-top > button .td-icon {
+  font-size: 16px;
+}
+
+#ppStage #ppChrome .campus-quick-map {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--campus-corner-height) + 9px);
+  right: max(8px, var(--campus-right-safe));
+  z-index: 1;
+  display: grid;
+  width: 112px;
+  padding: 3px;
+  border: 1px solid var(--campus-control-stroke);
+  border-radius: 5px;
+  background: var(--campus-control-surface);
+  color: var(--campus-control-ink);
+  font: 600 11px/1.6 system-ui, sans-serif;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+#ppStage #ppChrome .campus-quick-map canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border: 0;
+  pointer-events: none;
+}
+
+#ppStage #ppChrome .campus-quick-map:focus-visible {
+  outline: 2px solid var(--campus-detail-icon);
+  outline-offset: 3px;
 }
 
 #ppStage #ppChrome > #ppPeople {
   order: 1;
   border-top: 0;
+  background: rgb(18 32 38 / 77%);
 }
 
 #ppStage #ppChrome > #pp-back-home {
@@ -48,6 +96,8 @@
   border-top: 0;
   justify-content: flex-start;
   text-align: start;
+  min-height: 32px;
+  padding-block: 4px;
 }
 
 #ppStage #ppChrome .pp-top .pp-place {
@@ -61,6 +111,10 @@
   flex: none;
   border-radius: 0;
   color: var(--campus-detail-ink);
+}
+
+#ppStage #ppChrome .pp-top .pp-online[aria-expanded="true"] {
+  background: #28485d55;
 }
 
 #ppStage #ppChrome .pp-top .pp-online:before {
@@ -113,8 +167,8 @@ body.campus-hud-hidden #campus-author,
 }
 
 #campus-author button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 34px;
+  min-height: 32px;
   padding: 0 9px;
   cursor: pointer;
   touch-action: manipulation;
@@ -122,6 +176,11 @@ body.campus-hud-hidden #campus-author,
   border-width: 1px;
   border-style: solid;
   border-radius: 9px;
+}
+
+#campus-author > button {
+  background: rgb(18 32 38 / 69%);
+  border-radius: 7px;
 }
 
 #campus-author button:focus-visible,
@@ -187,11 +246,6 @@ body.campus-hud-hidden #campus-author,
 }
 
 @container (width <= 600px) {
-  #ppStage #ppChrome {
-    --campus-chat-width: clamp(76px, calc(100cqw - 254px - var(--campus-right-safe)), 208px);
-    --campus-left-width: min(244px, calc(100cqw - var(--campus-left-safe) - var(--campus-right-safe) - var(--campus-chat-width) - 6px));
-  }
-
   #ppChrome .pp-top .pp-place {
     min-width: 0;
     max-width: none;
@@ -206,7 +260,11 @@ body.campus-hud-hidden #campus-author,
 
   #ppChrome .pp-top .pp-online {
     gap: 4px;
-    padding-inline: 8px;
+    padding-inline: 7px;
+  }
+
+  #ppStage #ppChrome .campus-quick-map {
+    width: 72px;
   }
 
   #ppChrome #ppWalkNav {
@@ -215,13 +273,19 @@ body.campus-hud-hidden #campus-author,
   }
 }
 
+@container (width < 340px) or (height <= 480px) {
+  #ppStage #ppChrome .campus-quick-map {
+    display: none;
+  }
+}
+
 @media (pointer: coarse) {
   #campus-author {
-    bottom: calc(var(--campus-dock-bottom) + clamp(76px, 22cqw, 94px) + 8px);
+    bottom: calc(var(--campus-dock-bottom) + clamp(66px, 19cqw, 82px) + 8px);
   }
 
   #ppStage #ppChrome #ppPeople .prs-rows {
-    max-height: 54px;
+    max-height: min(81px, 22cqh);
     touch-action: pan-y;
   }
 

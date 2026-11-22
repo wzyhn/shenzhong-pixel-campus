@@ -17,7 +17,7 @@ const weather = [
   ["day", "晴天", "sun"],
   ["night", "夜晚", "moon"],
   ["rain", "下雨", "rain"],
-  ["snow", "下雪", "snow"],
+  ["snow", "下雪", "weather"],
 ];
 
 export function isCampusResizeDeliveryError(message) {
@@ -150,13 +150,18 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
   const chrome = doc.getElementById("ppChrome");
   const stage = doc.getElementById("ppStage");
   const activities = chrome?.querySelector(".pp-activities");
+  const run = doc.getElementById("pp-run");
   const camera = doc.getElementById("pp-camera");
   const menu = doc.getElementById("pp-menu");
-  if (!stage || !activities || !camera || !menu) return () => {};
+  if (!stage || !activities || !run || !camera || !menu) return () => {};
+  const originalRunSlot = doc.createComment("campus run position");
   const originalMenuSlot = doc.createComment("campus-menu-position");
+  run.before(originalRunSlot);
   menu.before(originalMenuSlot);
   const actions = doc.createElement("div");
-  actions.id = "campus-quick-controls";
+  actions.className = "campus-activity-strip";
+  actions.setAttribute("role", "group");
+  actions.setAttribute("aria-label", "漫游工具");
   const panel = doc.createElement("div");
   panel.className = "campus-quick-panel";
   panel.id = "campus-quick-options";
@@ -213,6 +218,7 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
         child.__ppEngine.setNameEggWeather(value);
         child.PPAudio?.weather(value === "rain");
         child.__ppEngine.save?.();
+        syncWeather();
         setOpen(false);
         settings.focus({ preventScroll: true });
       },
@@ -221,8 +227,8 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
     climates.append(option);
     return [value, option];
   });
-  actions.append(settings);
-  activities.append(actions, menu, camera, panel);
+  actions.append(run, settings, menu);
+  activities.append(actions, camera, panel);
   function toggleHud() {
     if (doc.body.classList.contains("campus-hud-hidden")) {
       doc.body.classList.remove("campus-hud-hidden");
@@ -260,10 +266,22 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
     effects.setAttribute("aria-pressed", String(Boolean(state?.effects && !state.muted)));
   }
 
+  let displayedWeather;
+  function syncWeather() {
+    const selected = child.__ppEngine.state().light;
+    const current = weather.find(([value]) => value === selected);
+    if (!current || selected === displayedWeather) return;
+    displayedWeather = selected;
+    const [, label] = current;
+    settings.setAttribute("aria-label", `天气和声音，${label}`);
+    settings.title = `天气和声音 · ${label}`;
+  }
+
   function setOpen(open) {
     panel.hidden = !open;
     settings.setAttribute("aria-expanded", String(open));
     if (open) {
+      syncWeather();
       const selected = child.__ppEngine.state().light;
       for (const [value, option] of choices)
         option.setAttribute("aria-pressed", String(value === selected));
@@ -304,12 +322,15 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
           : "开启校园音乐";
   });
   syncEffects();
+  syncWeather();
   doc.addEventListener("pointerdown", outside, true);
   doc.addEventListener("keydown", onKey, true);
   doc.addEventListener("click", syncEffects);
   child.addEventListener("pointerdown", resume, true);
   child.addEventListener("pointerup", resume, true);
   child.addEventListener("keydown", resume, true);
+  child.addEventListener("pp:entered", syncWeather);
+  child.addEventListener("pp:principal-change", syncWeather);
   return () => {
     unsubscribe();
     closeStick();
@@ -321,9 +342,12 @@ export function connectCampusQuickControls(child, bgm, toggleEffects) {
     child.removeEventListener("pointerdown", resume, true);
     child.removeEventListener("pointerup", resume, true);
     child.removeEventListener("keydown", resume, true);
+    child.removeEventListener("pp:entered", syncWeather);
+    child.removeEventListener("pp:principal-change", syncWeather);
+    originalRunSlot.replaceWith(run);
+    originalMenuSlot.replaceWith(menu);
     actions.remove();
     panel.remove();
-    originalMenuSlot.replaceWith(menu);
     doc.body.classList.remove("campus-hud-hidden");
   };
 }
@@ -334,10 +358,12 @@ export function connectCampusHud(child, frame) {
   const card = doc.getElementById("ppPeople");
   const settings = card?.querySelector(".prs-aux");
   const desktop = parent.matchMedia("(hover: hover) and (pointer: fine)");
+  const rosterButton = doc.getElementById("pp-roster");
   const place = doc.getElementById("pp-location");
   const top = place?.closest(".pp-top");
   const returnHome = doc.getElementById("pp-back-home");
   const moved = [];
+  let restoreMiniMap;
   if (place && doc.getElementById("pp-place")) {
     place.setAttribute("aria-labelledby", "pp-place");
     place.setAttribute("aria-description", "打开校园全图");
@@ -453,6 +479,31 @@ export function connectCampusHud(child, frame) {
   parent.addEventListener("keyup", sendMovement);
   return {
     css,
+    compactRoster() {
+      if (!desktop.matches && rosterButton?.getAttribute("aria-expanded") === "true") rosterButton.click();
+    },
+    attachQuickMap(open) {
+      const canvas = doc.querySelector("#mini #minic");
+      if (!canvas || !returnHome || !open || restoreMiniMap) return;
+      const slot = doc.createComment("campus mini map position");
+      canvas.before(slot);
+      const hidden = canvas.getAttribute("aria-hidden");
+      canvas.setAttribute("aria-hidden", "true");
+      const button = doc.createElement("button");
+      button.className = "campus-quick-map";
+      button.type = "button";
+      button.setAttribute("aria-label", "打开校园全图");
+      button.setAttribute("aria-haspopup", "dialog");
+      button.append(canvas, "全图");
+      button.addEventListener("click", () => open(button));
+      returnHome.after(button);
+      restoreMiniMap = () => {
+        slot.replaceWith(canvas);
+        if (hidden == null) canvas.removeAttribute("aria-hidden");
+        else canvas.setAttribute("aria-hidden", hidden);
+        button.remove();
+      };
+    },
     focusGame() {
       const active = frame.ownerDocument.activeElement;
       if (desktop.matches && (active === frame.ownerDocument.body || active === frame)) {
@@ -460,6 +511,7 @@ export function connectCampusHud(child, frame) {
       }
     },
     destroy() {
+      restoreMiniMap?.();
       stylesheet.abort();
       clearTimeout(deadline);
       place?.removeAttribute("aria-labelledby");

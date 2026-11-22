@@ -1,0 +1,27 @@
+name: Verify campus release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: campus-release-verification
+  cancel-in-progress: true
+
+jobs:
+  production:
+    name: Verify live campus
+    if: vars.CAMPUS_PUBLIC_ORIGIN != '' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
+        with:
+          node-version: '22'
+      - run: node scripts/verify-live.mjs "$CAMPUS_PUBLIC_ORIGIN" "$GITHUB_SHA"
+        env:
+          CAMPUS_PUBLIC_ORIGIN: ${{ vars.CAMPUS_PUBLIC_ORIGIN }}

@@ -5,6 +5,7 @@ import { connectCampusChat } from "./campus-chat.mjs";
 import { connectCampusAuthor } from "./campus-author.mjs";
 import { connectCampusClues } from "./campus-clues.mjs";
 import { connectCampusHud, connectCampusQuickControls, keepCampusResizeWarningsInConsole } from "./campus-hud.mjs";
+import { connectCampusOverview } from "./campus-overview.mjs";
 import { installCampusRoom } from "./campus-room.mjs";
 
 const CAMPUS_PATH = "/手机校园/深中随身校园.html";
@@ -262,9 +263,10 @@ export function mountCampusEmbed(host, { bgm, identity, principalID, onReady }) 
       const room = installCampusRoom(child, { principalID, current: identity.current });
       const session = identity.connect(child);
       const closeLabel = labelCampusSession(child);
-      let album, chat, clues, closeClueMenu;
+      let album, chat, clues, closeClueMenu, overview;
       connectShare(child);
       disconnect = () => {
+        overview?.destroy();
         closeClueMenu?.();
         clues?.destroy();
         album?.destroy();
@@ -282,7 +284,12 @@ export function mountCampusEmbed(host, { bgm, identity, principalID, onReady }) 
       };
       await session.ready;
       if (disposed || turn !== generation) return;
+      hud.compactRoster();
       room.ensureJoined();
+      try {
+        overview = connectCampusOverview(child);
+        hud.attachQuickMap(overview.open);
+      } catch { /* The original map remains usable. */ }
       try {
         chat = connectCampusChat(child, { identity });
       } catch { /* Map navigation remains available when chat is unavailable. */ }

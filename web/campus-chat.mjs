@@ -126,6 +126,9 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
   ui.hidden = true;
   const top = createElement(doc, "section", "campus-chat-top");
   const surface = createElement(doc, "div", "campus-chat-feed-surface");
+  const indicator = createElement(doc, "span", "campus-chat-indicator");
+  indicator.setAttribute("aria-hidden", "true");
+  indicator.innerHTML = child.PPTD?.icon("chat") || "";
   const open = createButton(doc, undefined, "campus-chat-feed-open");
   open.setAttribute("aria-label", "公屏聊天");
   open.setAttribute("aria-controls", "campus-chat-composer");
@@ -138,7 +141,7 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
   feed.hidden = true;
   const empty = createElement(doc, "span", "campus-chat-feed-prompt", "说句话…");
   empty.setAttribute("aria-hidden", "true");
-  surface.append(feed, empty, open);
+  surface.append(indicator, feed, empty, open);
   top.append(surface);
 
   const panel = createElement(doc, "div", "campus-chat-panel");
@@ -274,7 +277,9 @@ export function connectCampusChat(child, { identity, fetcher = globalThis.fetch.
   function setBackendState(next) {
     if (backendState === next) return false;
     backendState = next;
-    empty.textContent = next === "closed" || next === "offline" ? "暂不可用" : "说句话…";
+    const unavailable = next === "closed" || next === "offline";
+    surface.toggleAttribute("data-unavailable", unavailable);
+    empty.textContent = unavailable ? "暂不可用" : "说句话…";
     syncComposer();
     return true;
   }

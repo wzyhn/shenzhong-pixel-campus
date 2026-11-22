@@ -48,8 +48,9 @@ body.campus-hud-hidden .campus-chat-layer {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 36px;
-  padding: 0 9px;
+  height: var(--campus-corner-height, 40px);
+  gap: 5px;
+  padding: 0 7px;
   border: 1px solid var(--campus-chat-line);
   border-radius: 0;
   background: var(--campus-chat-paper);
@@ -58,8 +59,28 @@ body.campus-hud-hidden .campus-chat-layer {
 }
 
 .campus-chat-feed-prompt {
+  display: none;
   color: var(--campus-chat-muted);
   white-space: nowrap;
+}
+
+.campus-chat-feed-surface[data-unavailable] .campus-chat-feed-prompt {
+  display: inline;
+}
+
+.campus-chat-indicator {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 17px;
+  color: #b9d7ff;
+  font-size: 16px;
+}
+
+.campus-chat-feed-surface:has(.campus-chat-feed[hidden]):not([data-unavailable]) {
+  justify-content: center;
+  width: 44px;
+  margin-inline-start: auto;
 }
 
 .campus-chat-feed-open {
@@ -109,9 +130,9 @@ body.campus-hud-hidden .campus-chat-layer {
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
   padding: 0;
   border-radius: 12px;
   pointer-events: auto;
@@ -164,7 +185,7 @@ body.campus-hud-hidden .campus-chat-layer {
 }
 
 .campus-chat-feed .campus-chat-author {
-  max-width: 40%;
+  max-width: 48%;
   color: #b9d7ff;
 }
 
@@ -327,15 +348,12 @@ body.campus-hud-hidden .campus-chat-layer {
 }
 
 @container (width <= 600px) {
-  :is(.campus-chat-top, #ppStage.campus-chat-active #ppChrome .pp-top) {
-    --campus-chat-corner-width: clamp(76px, calc(100cqw - 254px - env(safe-area-inset-right, 0px)), 208px);
-  }
   .campus-chat-top {
-    width: var(--campus-chat-corner-width);
+    width: min(218px, calc(100cqw - var(--campus-left-width, 54cqw) - var(--campus-left-safe, 0px) - var(--campus-right-safe, 0px) - 6px));
   }
-  #ppStage.campus-chat-active #ppChrome .pp-top {
-    /* Even three-digit counts share the row with the fixed preview. */
-    max-width: calc(100cqw - var(--pp-hud-left, 14px) - var(--campus-chat-corner-width) - env(safe-area-inset-right, 0px) - 6px);
+
+  .campus-chat-feed-surface {
+    font-size: 12px;
   }
 }
 

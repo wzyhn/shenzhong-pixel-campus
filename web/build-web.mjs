@@ -9,7 +9,7 @@ const files = [
   'bgm.mjs', 'campus-album.mjs', 'campus-appearance.css', 'campus-appearance.mjs', 'campus-author.mjs',
   'campus-camera.mjs', 'campus-chat.css', 'campus-chat.mjs', 'campus-clues.css', 'campus-clues.mjs',
   'campus-embed.mjs', 'campus-floating-stick.mjs', 'campus-hud.css', 'campus-hud.mjs',
-  'campus-identity.mjs', 'campus-mobile.css', 'campus-room.mjs',
+  'campus-identity.mjs', 'campus-mobile.css', 'campus-overview.css', 'campus-overview.mjs', 'campus-room.mjs',
 ];
 for (const file of files) await cp(path.join(source, file), path.join(out, file));
 for (const [from, to] of [

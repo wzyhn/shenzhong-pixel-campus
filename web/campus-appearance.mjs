@@ -27,11 +27,54 @@ export function setupCampusOutfit(value) {
   return Object.values(accepted).every(Boolean) ? accepted : null;
 }
 
+function span(source, prefix, suffix) {
+  const start = source.indexOf(prefix);
+  if (start < 0 || source.indexOf(prefix, start + prefix.length) >= 0) throw new Error("Original campus avatar trace point changed");
+  const end = source.indexOf(suffix, start + prefix.length);
+  if (end < 0) throw new Error("Original campus avatar trace point changed");
+  return source.slice(start + prefix.length, end);
+}
+
+export function buildCampusAvatarModule(originalHtml) {
+  const html = String(originalHtml);
+  const verify = (actual, expected) => {
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("Original campus appearance options changed");
+  };
+  const originalGrades = span(html, 'id="fGrade">', "</select>");
+  verify([...originalGrades.matchAll(/<option>([^<]+)<\/option>/g)].map(match => match[1]), grades);
+  const originalHair = span(html, 'id="fHair">', "</div>");
+  verify([...originalHair.matchAll(/<button data-v="([^"]+)">([^<]+)<\/button>/g)]
+    .map(([, value, label]) => ({ value, label })), hairstyles);
+  const originalHairColors = JSON.parse(span(html, "const Zl=", ",tn="));
+  const originalSkinColors = JSON.parse(span(html, ",tn=", ",en={name:"));
+  verify(originalHairColors, hairColors.map(item => item.value));
+  verify(originalSkinColors, skinColors.map(item => item.value));
+  const startPainter = "function Qt(t,e,l,n,i,o,a){";
+  const originalPainter = startPainter + span(html, startPainter, "const Zt=[];let le=");
+  const originalUniform = span(html, "const $t=", ",Kt={me:");
+  const drawStart = 'if("none"===ln("start").style.display)return;';
+  const originalPortrait = span(html, drawStart, ",requestAnimationFrame(t)});const An=");
+  return [
+    "// Generated from the authorized B401 portrait and sprite painters.",
+    "let _t = 0;",
+    originalPainter,
+    "const uniform = " + originalUniform + ";",
+    "export function drawCampusAvatar(In, Pn, e, outfit) {",
+    "  _t = e;",
+    "  const Tn = { ...uniform, hs: outfit.hair, hair: outfit.hairC, skin: outfit.skin };",
+    "  " + originalPortrait,
+    "}",
+    "",
+  ].join("\n");
+}
+
 export function mountCampusAppearance({ doc, design, loadPainter = () => import("./campus-avatar-original.mjs") }) {
   const window = doc.defaultView;
   const selected = { ...defaultCampusOutfit };
   const preview = doc.createElement("figure");
   preview.className = "campus-avatar-preview";
+  const scene = doc.createElement("div");
+  scene.className = "campus-avatar-scene";
   const canvas = doc.createElement("canvas");
   canvas.width = 150;
   canvas.height = 190;
@@ -39,9 +82,11 @@ export function mountCampusAppearance({ doc, design, loadPainter = () => import(
   canvas.setAttribute("aria-label", "深中校服人物预览");
   const caption = doc.createElement("figcaption");
   const displayName = doc.createElement("strong");
+  displayName.setAttribute("dir", "auto");
   const description = doc.createElement("span");
+  scene.append(canvas);
   caption.append(displayName, description);
-  preview.append(canvas, caption);
+  preview.append(scene, caption);
   const context = canvas.getContext("2d");
   const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   const controls = [];
