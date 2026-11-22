@@ -138,6 +138,11 @@ body.campus-hud-hidden .campus-chat-layer {
   pointer-events: auto;
 }
 
+#ppStage .campus-chat-layer:is([data-campus-chat-panel="compose"], [data-campus-chat-panel="history"])
+  #pp-emotes.campus-chat-emoji-trigger {
+  display: none;
+}
+
 .campus-chat-send {
   border-color: #a8ccffb3;
   background: var(--campus-chat-primary);
